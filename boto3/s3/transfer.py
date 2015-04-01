@@ -116,6 +116,7 @@ import functools
 import logging
 import socket
 from concurrent import futures
+import contextlib
 
 import six
 from botocore.vendored.requests.packages.urllib3.exceptions import \
@@ -239,6 +240,9 @@ class StreamReaderProgress(object):
         if self._callback is not None:
             self._callback(len(value))
         return value
+
+    def close(self):
+        return self._stream.close()
 
 
 class ThreadSafeWriter(object):
@@ -365,9 +369,10 @@ class MultipartDownloader(object):
             response['Body'], callback)
         buffer_size = 1024 * 16
         current_index = start_range
-        for chunk in iter(lambda: streaming_body.read(buffer_size), b''):
-            self._ioqueue.put((current_index, chunk))
-            current_index += len(chunk)
+        with contextlib.closing(streaming_body) as stream:
+            for chunk in iter(lambda: stream.read(buffer_size), b''):
+                self._ioqueue.put((current_index, chunk))
+                current_index += len(chunk)
 
     def _perform_io_writes(self, filename):
         with self._os.open(filename, 'wb') as f:
