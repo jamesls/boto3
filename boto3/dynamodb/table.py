@@ -53,6 +53,30 @@ class TableResource(object):
         """
         return BatchWriter(self.name, self.meta.client)
 
+    def scan_items(self, FilterExpression=None):
+        """Scan all items in a table.
+
+        This method is a high level interface over the
+        ``Table.scan()`` method.  It provides several conveniences including:
+
+            * Automatic pagination of items.
+            * Iteration over only the Items in a table.
+
+        If you need more control or more advanced capabilities,
+        use the ``Table.scan()`` method.
+
+        """
+        params = {'FilterExpression': FilterExpression}
+        while True:
+            result = self.scan(**params)
+            for item in result['Items']:
+                yield item
+            next_marker = result.get('LastEvaluatedKey', '')
+            if next_marker:
+                params['ExclusiveStartKey'] = next_marker
+            else:
+                break
+
 
 class BatchWriter(object):
     """Automatically handle batch writes to DynamoDB for a single table."""
